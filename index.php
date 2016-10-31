@@ -27,7 +27,7 @@ header('Strict-Transport-Security: max-age=15768000; includeSubDomains; preload'
 header('Content-Type: application/octet-stream');
 header('Content-Disposition: attachment');
 
-$cacheItem = $_SERVER['PATH_INFO'];
+$cacheItem = substr($_SERVER['REQUEST_URI'], 1);
 if (strpos($cacheItem, '/../') !== false || strrchr($cacheItem, '/') === '/..') {
 	die('Traversal detected');
 }
