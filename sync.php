@@ -44,10 +44,11 @@ foreach($supportedVersions as $version) {
 	$apps = json_decode($json, true);
 	foreach($apps as $app) {
 		foreach($app['screenshots'] as $screenshot) {
-			$url = trim($screenshot['url']);
+			$url = $screenshot['url'];
 			if(!file_exists(__DIR__ . '/cache/' . base64_encode($url))) {
-				if (substr($url, 0, 8) === 'https://') {
-					$data = file_get_contents($url);
+				$trimmedUrl = trim($url);
+				if (substr($trimmedUrl, 0, 8) === 'https://') {
+					$data = file_get_contents($trimmedUrl);
 					file_put_contents(__DIR__ . '/cache/' . base64_encode($url), $data);
 					echo(
 						sprintf(
