@@ -44,7 +44,7 @@ foreach($supportedVersions as $version) {
 	$apps = json_decode($json, true);
 	foreach($apps as $app) {
 		foreach($app['screenshots'] as $screenshot) {
-			$url = preg_replace('/\s+/', '', $screenshot['url']);
+			$url = trim($screenshot['url']);
 			if(!file_exists(__DIR__ . '/cache/' . base64_encode($url))) {
 				if (substr($url, 0, 8) === 'https://') {
 					$data = file_get_contents($url);
