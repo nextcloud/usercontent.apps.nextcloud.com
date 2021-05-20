@@ -37,6 +37,8 @@ $supportedVersions = [
 	'17.0.0',
 	'18.0.0',
 	'19.0.0',
+	'20.0.0',
+	'21.0.0',
 ];
 
 foreach($supportedVersions as $version) {
