@@ -40,8 +40,6 @@ $supportedVersions = [
 	'20.0.0',
 	'21.0.0',
 	'22.0.0',
-	'22.1.0',
-	'22.2.0',
 ];
 
 foreach($supportedVersions as $version) {
