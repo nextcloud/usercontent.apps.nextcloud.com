@@ -26,13 +26,6 @@ if(php_sapi_name() !== 'cli') {
 }
 
 $supportedVersions = [
-	'9.2.0',
-	'10.0.0',
-	'11.0.0',
-	'12.0.0',
-	'13.0.0',
-	'14.0.0',
-	'15.0.0',
 	'16.0.0',
 	'17.0.0',
 	'18.0.0',
@@ -44,6 +37,7 @@ $supportedVersions = [
 	'24.0.0',
 	'25.0.0',
 	'26.0.0',
+	'27.0.0',
 ];
 
 foreach($supportedVersions as $version) {
