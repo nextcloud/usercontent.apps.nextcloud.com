@@ -26,13 +26,6 @@ if(php_sapi_name() !== 'cli') {
 }
 
 $supportedVersions = [
-	'9.2.0',
-	'10.0.0',
-	'11.0.0',
-	'12.0.0',
-	'13.0.0',
-	'14.0.0',
-	'15.0.0',
 	'16.0.0',
 	'17.0.0',
 	'18.0.0',
@@ -44,16 +37,13 @@ $supportedVersions = [
 	'24.0.0',
 	'25.0.0',
 	'26.0.0',
+	'27.0.0',
 ];
 
-foreach($supportedVersions as $version) {
-	$json = file_get_contents(
-		sprintf(
-			'https://apps.nextcloud.com/api/v1/platform/%s/apps.json', $version
-		)
-	);
-
-	$apps = json_decode($json, true);
+/**
+ * @param array $apps decoded JSON from appstore
+ */
+function handleApps(array $apps): void {
 	foreach($apps as $app) {
 		foreach($app['screenshots'] as $screenshot) {
 			$url = $screenshot['url'];
@@ -63,13 +53,28 @@ foreach($supportedVersions as $version) {
 					$data = file_get_contents($trimmedUrl);
 					file_put_contents(__DIR__ . '/cache/' . base64_encode($url), $data);
 					echo(
-						sprintf(
-							"Synced url %s\n",
-							$url
-						)
+					sprintf(
+						"Synced url %s\n",
+						$url
+					)
 					);
 				}
 			}
 		}
 	}
 }
+
+foreach($supportedVersions as $version) {
+	$json = file_get_contents(
+		sprintf(
+			'https://apps.nextcloud.com/api/v1/platform/%s/apps.json', $version
+		)
+	);
+
+	$apps = json_decode($json, true);
+    handleApps($apps);
+}
+
+$json = file_get_contents('https://apps.nextcloud.com/api/v1/appapi_apps.json');
+$apps = json_decode($json, true);
+handleApps($apps);
