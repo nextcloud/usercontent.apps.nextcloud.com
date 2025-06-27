@@ -1,0 +1,3 @@
+# ignore all cached images but not the cache directory itself
+/cache
+!/cache/.gitkeep
