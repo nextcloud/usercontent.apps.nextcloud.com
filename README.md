@@ -1,3 +1,8 @@
+<!--
+ - SPDX-FileCopyrightText: 2016-2025 Nextcloud GmbH and Nextcloud contributors
+ - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 # Proxy for the Nextcloud appstore
 
 The Nextcloud appstore is serving some content from external domains.
