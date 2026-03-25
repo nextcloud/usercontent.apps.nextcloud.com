@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2016-2025 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# ignore all cached images but not the cache directory itself
+/cache
+!/cache/.gitkeep
