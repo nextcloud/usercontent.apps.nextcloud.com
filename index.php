@@ -14,12 +14,12 @@ header('Content-Type: application/octet-stream');
 header('Content-Disposition: attachment');
 
 $cacheItem = substr($_SERVER['REQUEST_URI'], 1);
-if (strpos($cacheItem, '/../') !== false || strrchr($cacheItem, '/') === '/..') {
-	die('Traversal detected');
-}
-if (file_exists(__DIR__ . '/cache/' . $cacheItem)) {
-	header('Expires: Sun, 17 Jan 2038 19:14:07 GMT');
-	echo file_get_contents(__DIR__ . '/cache/' . $cacheItem);
-} else {
+$realPath = realpath(__DIR__ . '/cache/' . $cacheItem);
+$cacheDir = realpath(__DIR__ . '/cache/');
+
+if ($realPath === false || strpos($realPath, $cacheDir . DIRECTORY_SEPARATOR) !== 0) {
 	die('File not found');
 }
+
+header('Expires: Sun, 17 Jan 2038 19:14:07 GMT');
+echo file_get_contents($realPath);
