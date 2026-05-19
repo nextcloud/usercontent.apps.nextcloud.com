@@ -12,6 +12,11 @@ if (php_sapi_name() !== 'cli') {
 }
 
 $allVersionsJson = file_get_contents('https://apps.nextcloud.com/api/v1/platforms.json');
+
+if ($allVersionsJson === false) {
+	die('Unable to read platforms.json');
+}
+
 $allVersions = json_decode($allVersionsJson, true);
 $supportedVersionObjects = array_filter($allVersions, fn (array $ver): bool => $ver['isSupported'] && str_ends_with($ver['version'], '.0.0'));
 $supportedVersions = array_map(fn (array $ver): string => $ver['version'], $supportedVersionObjects);
@@ -45,10 +50,20 @@ foreach($supportedVersions as $version) {
 		sprintf('https://apps.nextcloud.com/api/v1/platform/%s/apps.json', $version)
 	);
 
+	if ($json === false) {
+		echo(sprintf("Unable to read apps.json for version %s\n", $version));
+		continue;
+	}
+
 	$apps = json_decode($json, true);
     handleApps($apps);
 }
 
 $json = file_get_contents('https://apps.nextcloud.com/api/v1/appapi_apps.json');
+
+if ($json === false) {
+	die('Unable to read appapi_apps.json');
+}
+
 $apps = json_decode($json, true);
 handleApps($apps);
