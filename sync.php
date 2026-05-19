@@ -25,7 +25,7 @@ function handleApps(array $apps): void {
 			$url = $screenshot['url'];
 			if (!file_exists(__DIR__ . '/cache/' . base64_encode($url))) {
 				$trimmedUrl = trim($url);
-				if (substr($trimmedUrl, 0, 8) === 'https://') {
+				if (str_starts_with($trimmedUrl, 'https://')) {
 					$data = file_get_contents($trimmedUrl);
 					file_put_contents(__DIR__ . '/cache/' . base64_encode($url), $data);
 					echo(
