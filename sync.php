@@ -21,6 +21,34 @@ $allVersions = json_decode($allVersionsJson, true);
 $supportedVersionObjects = array_filter($allVersions, fn (array $ver): bool => $ver['isSupported'] && str_ends_with($ver['version'], '.0.0'));
 $supportedVersions = array_map(fn (array $ver): string => $ver['version'], $supportedVersionObjects);
 
+const MAX_SCREENSHOT_SIZE = 2 * 1024 * 1024; // 2 MiB
+const HTTP_TIMEOUT_S  = 30;
+
+/**
+ * @param string $cacheUrl path to screenshot in cache
+ * @param string $url HTTP URL of screenshot
+ * @param string $message warning message to display
+ */
+function generateWarningImage(string $cacheUrl, string $url, string $message): void {
+	$data = imagecreatetruecolor(640, 360);
+
+	if ($data === false) {
+		// This should never happen, but just in case, replace current cache data with an empty file instead
+		file_put_contents($cacheUrl, '');
+		echo(sprintf("Synced url %s (%s, unable to generate warning image)\n", $url, $message));
+		return;
+	}
+
+	$textColorError = imagecolorallocate($data, 255, 0, 0); // red
+	$textColorNormal = imagecolorallocate($data, 255, 255, 255); // white
+	imagestring($data, 5, 8, 150, 'Preview not available', $textColorError);
+	imagestring($data, 5, 8, 170, $message, $textColorNormal);
+	imagestring($data, 5, 8, 190, basename($url), $textColorNormal);
+
+	imagepng($data, $cacheUrl);
+	echo(sprintf("Synced url %s (%s)\n", $url, $message));
+}
+
 /**
  * @param array $apps decoded JSON from appstore
  */
@@ -28,19 +56,47 @@ function handleApps(array $apps): void {
 	foreach ($apps as $app) {
 		foreach ($app['screenshots'] as $screenshot) {
 			$url = $screenshot['url'];
-			if (!file_exists(__DIR__ . '/cache/' . base64_encode($url))) {
-				$trimmedUrl = trim($url);
-				if (str_starts_with($trimmedUrl, 'https://')) {
-					$data = file_get_contents($trimmedUrl);
-					file_put_contents(__DIR__ . '/cache/' . base64_encode($url), $data);
-					echo(
-					sprintf(
-						"Synced url %s\n",
-						$url
-					)
-					);
-				}
+			$trimmedUrl = trim($url);
+
+			if (!str_starts_with($trimmedUrl, 'https://')) {
+				continue;
 			}
+
+			$cacheUrl = __DIR__ . '/cache/' . base64_encode($url);
+
+			if (file_exists($cacheUrl)) {
+				continue;
+			}
+
+			$ctx = stream_context_create([
+				'http' => [
+					'timeout' => HTTP_TIMEOUT_S,
+					'max_redirects' => 3,
+					'user_agent' => 'nextcloud-usercontent-sync/1.0',
+				],
+			]);
+
+			$data = @file_get_contents($trimmedUrl, false, $ctx, 0, MAX_SCREENSHOT_SIZE + 1);
+
+			if ($data === false) {
+				generateWarningImage($cacheUrl, $url, 'Failed to fetch image');
+				continue;
+			}
+
+			if (strlen($data) > MAX_SCREENSHOT_SIZE) {
+				generateWarningImage($cacheUrl, $url, 'Image exceeds file size limit');
+				continue;
+			}
+
+			file_put_contents($cacheUrl, $data);
+
+			$mimeType = mime_content_type($cacheUrl);
+			if (!str_starts_with($mimeType, 'image/')) {
+				generateWarningImage($cacheUrl, $url, 'Image not recognized');
+				continue;
+			}
+
+			echo(sprintf("Synced url %s\n", $url));
 		}
 	}
 }
