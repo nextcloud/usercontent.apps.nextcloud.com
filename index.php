@@ -17,7 +17,7 @@ $cacheItem = substr($_SERVER['REQUEST_URI'], 1);
 $realPath = realpath(__DIR__ . '/cache/' . $cacheItem);
 $cacheDir = realpath(__DIR__ . '/cache/');
 
-if ($realPath === false || strpos($realPath, $cacheDir . DIRECTORY_SEPARATOR) !== 0) {
+if ($realPath === false || !str_starts_with($realPath, $cacheDir . DIRECTORY_SEPARATOR)) {
 	die('File not found');
 }
 
