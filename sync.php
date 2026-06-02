@@ -88,14 +88,23 @@ function handleApps(array $apps): void {
 				continue;
 			}
 
-			file_put_contents($cacheUrl, $data);
+			$tempUrl = tempnam(sys_get_temp_dir(), 'screenshot');
+			if ($tempUrl === false) {
+				// This should never happen, but just in case, treat this as an internal error
+				// Do nothing for now and try again later
+				continue;
+			}
 
-			$mimeType = mime_content_type($cacheUrl);
+			file_put_contents($tempUrl, $data);
+
+			$mimeType = mime_content_type($tempUrl);
 			if (!str_starts_with($mimeType, 'image/')) {
+				unlink($tempUrl);
 				generateWarningImage($cacheUrl, $url, 'Image not recognized');
 				continue;
 			}
 
+			rename($tempUrl, $cacheUrl);
 			echo(sprintf("Synced url %s\n", $url));
 		}
 	}
