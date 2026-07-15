@@ -1,0 +1,9 @@
+{
+    "name": "nextcloud/usercontent.apps.nextcloud.com",
+    "type": "project",
+    "require": {
+        "craftcms/url-validator": "^1.1"
+    },
+    "license": "AGPL-3.0-or-later",
+    "description": ""
+}
