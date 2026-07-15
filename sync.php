@@ -7,6 +7,11 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+include_once __DIR__ . '/vendor/autoload.php';
+
+use CraftCms\UrlValidator\UrlValidationException;
+use CraftCms\UrlValidator\UrlValidator;
+
 if (php_sapi_name() !== 'cli') {
 	die('Can only be invoked from CLI');
 }
@@ -53,6 +58,8 @@ function generateWarningImage(string $cacheUrl, string $url, string $message): v
  * @param array $apps decoded JSON from appstore
  */
 function handleApps(array $apps): void {
+	$validator = new UrlValidator();
+
 	foreach ($apps as $app) {
 		foreach ($app['screenshots'] as $screenshot) {
 			$url = $screenshot['url'];
@@ -65,6 +72,13 @@ function handleApps(array $apps): void {
 			$cacheUrl = __DIR__ . '/cache/' . base64_encode($url);
 
 			if (file_exists($cacheUrl)) {
+				continue;
+			}
+
+			try {
+				$validator->validate($url);
+			} catch (UrlValidationException $e) {
+				generateWarningImage($cacheUrl, $url, 'Failed to fetch image');
 				continue;
 			}
 
