@@ -5,4 +5,8 @@
 /cache
 !/cache/.gitkeep
 
+# ignore all failed-fetch retry markers but not the directory itself
+/cache-failed
+!/cache-failed/.gitkeep
+
 /vendor/
