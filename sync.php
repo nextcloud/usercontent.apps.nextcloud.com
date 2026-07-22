@@ -70,6 +70,101 @@ function markFailedFetch(string $cacheUrl, string $failMarker, string $url, stri
 }
 
 /**
+ * Fetches a URL over HTTP, pinning each connection to a pre-validated list of
+ * IP addresses for the URL's hostname.
+ *
+ * @param UrlValidator $validator used to validate each redirect target
+ * @param string $url URL to fetch
+ * @param string[] $ips validated IP addresses the initial host resolves to
+ * @return string|false the response body, or false on failure
+ */
+function fetchScreenshot(UrlValidator $validator, string $url, array $ips): string|false {
+	$maxRedirects = 3;
+	$redirects = 0;
+	$currentUrl = $url;
+	$currentIps = $ips;
+
+	while (true) {
+		$host = parse_url($currentUrl, PHP_URL_HOST);
+		$port = parse_url($currentUrl, PHP_URL_PORT)
+			?: (str_starts_with($currentUrl, 'https://') ? 443 : 80);
+
+		if (!is_string($host) || $host === '') {
+			return false;
+		}
+
+		$resolveEntries = array_map(
+			function (string $ip) use ($host, $port): string {
+				$ip = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false
+					? "[$ip]"
+					: $ip;
+				return "$host:$port:$ip";
+			},
+			$currentIps,
+		);
+
+		$body = '';
+		$abortedByLimit = false;
+
+		$ch = curl_init($currentUrl);
+		curl_setopt_array($ch, [
+			CURLOPT_FOLLOWLOCATION => false,
+			CURLOPT_TIMEOUT => HTTP_TIMEOUT_S,
+			CURLOPT_USERAGENT => 'nextcloud-usercontent-sync/1.0',
+			CURLOPT_RESOLVE => $resolveEntries,
+			CURLOPT_SSL_VERIFYPEER => true,
+			CURLOPT_SSL_VERIFYHOST => 2,
+			CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+			CURLOPT_WRITEFUNCTION => function ($curl, $chunk) use (&$body, &$abortedByLimit): int {
+				if (strlen($body) + strlen($chunk) > MAX_SCREENSHOT_SIZE + 1) {
+					$remaining = (MAX_SCREENSHOT_SIZE + 1) - strlen($body);
+					if ($remaining > 0) {
+						$body .= substr($chunk, 0, $remaining);
+					}
+					$abortedByLimit = true;
+					return -1;
+				}
+				$body .= $chunk;
+				return strlen($chunk);
+			},
+		]);
+
+		curl_exec($ch);
+		$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		$redirectUrl = curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+		$errno = curl_errno($ch);
+		curl_close($ch);
+
+		if ($status >= 300 && $status < 400 && is_string($redirectUrl) && $redirectUrl !== '') {
+			$redirects++;
+			if ($redirects > $maxRedirects) {
+				return false;
+			}
+
+			// Validate the redirect target the same way as the initial URL before following it
+			try {
+				$currentIps = $validator->validate($redirectUrl);
+			} catch (UrlValidationException $e) {
+				return false;
+			}
+
+			$currentUrl = $redirectUrl;
+			continue;
+		}
+
+		if ($abortedByLimit) {
+			return $body;
+		}
+
+		if ($errno !== 0 || $status < 200 || $status >= 300) {
+			return false;
+		}
+
+		return $body;
+	}
+}
+
+/**
  * @param UrlValidator $validator
  * @param array $screenshot decoded JSON of a single screenshot entry
  */
@@ -103,21 +198,13 @@ function handleScreenshot(UrlValidator $validator, array $screenshot): void {
 	}
 
 	try {
-		$validator->validate($url);
+		$ips = $validator->validate($trimmedUrl);
 	} catch (UrlValidationException $e) {
 		markFailedFetch($cacheUrl, $failMarker, $url, 'Failed to fetch image');
 		return;
 	}
 
-	$ctx = stream_context_create([
-		'http' => [
-			'timeout' => HTTP_TIMEOUT_S,
-			'max_redirects' => 3,
-			'user_agent' => 'nextcloud-usercontent-sync/1.0',
-		],
-	]);
-
-	$data = @file_get_contents($trimmedUrl, false, $ctx, 0, MAX_SCREENSHOT_SIZE + 1);
+	$data = fetchScreenshot($validator, $trimmedUrl, $ips);
 
 	if ($data === false) {
 		markFailedFetch($cacheUrl, $failMarker, $url, 'Failed to fetch image');

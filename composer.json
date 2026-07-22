@@ -2,7 +2,9 @@
     "name": "nextcloud/usercontent.apps.nextcloud.com",
     "type": "project",
     "require": {
-        "craftcms/url-validator": "^1.1"
+        "craftcms/url-validator": "^1.1",
+        "ext-curl": "*",
+        "ext-openssl": "*"
     },
     "license": "AGPL-3.0-or-later",
     "description": ""
