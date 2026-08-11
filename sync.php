@@ -176,8 +176,9 @@ function handleScreenshot(UrlValidator $validator, array $screenshot): void {
 		return;
 	}
 
-	$cacheUrl = __DIR__ . '/cache/' . base64_encode($url);
-	$failMarker = __DIR__ . '/cache-failed/' . base64_encode($url);
+	$base64Url = strtr(base64_encode($url), '+/', '-_');
+	$cacheUrl = __DIR__ . '/cache/' . $base64Url;
+	$failMarker = __DIR__ . '/cache-failed/' . $base64Url;
 
 	if (file_exists($cacheUrl)) {
 		if (!file_exists($failMarker)) {
