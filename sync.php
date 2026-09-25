@@ -29,6 +29,34 @@ $supportedVersions = array_map(fn (array $ver): string => $ver['version'], $supp
 const MAX_SCREENSHOT_SIZE = 2 * 1024 * 1024; // 2 MiB
 const HTTP_TIMEOUT_S  = 30;
 const RETRY_BACKOFF_S = 6 * 3600; // don't retry a failed fetch more often than this
+const PROXY_URL_PREFIX = 'https://usercontent.apps.nextcloud.com/';
+
+/**
+ * The app store serves screenshot URLs already pointing at this proxy, so the
+ * cache key is the path of that URL and the source URL is its decoded form.
+ * URLs not in that form are the source URL itself, as the app store served
+ * them before.
+ *
+ * @param string $url screenshot URL as served by the app store
+ * @return array{string, string}|null cache key and source URL, or null if the key is not valid base64url
+ */
+function resolveScreenshotUrl(string $url): ?array {
+	if (!str_starts_with($url, PROXY_URL_PREFIX)) {
+		return [strtr(base64_encode($url), '+/', '-_'), $url];
+	}
+
+	$base64Url = substr($url, strlen(PROXY_URL_PREFIX));
+	if (preg_match('/^[A-Za-z0-9_-]+={0,2}$/', $base64Url) !== 1) {
+		return null;
+	}
+
+	$sourceUrl = base64_decode(strtr($base64Url, '-_', '+/'), true);
+	if ($sourceUrl === false) {
+		return null;
+	}
+
+	return [$base64Url, $sourceUrl];
+}
 
 /**
  * @param string $cacheUrl path to screenshot in cache
@@ -169,14 +197,18 @@ function fetchScreenshot(UrlValidator $validator, string $url, array $ips): stri
  * @param array $screenshot decoded JSON of a single screenshot entry
  */
 function handleScreenshot(UrlValidator $validator, array $screenshot): void {
-	$url = $screenshot['url'];
+	$resolved = resolveScreenshotUrl($screenshot['url']);
+	if ($resolved === null) {
+		return;
+	}
+
+	[$base64Url, $url] = $resolved;
 	$trimmedUrl = trim($url);
 
 	if (!str_starts_with($trimmedUrl, 'https://')) {
 		return;
 	}
 
-	$base64Url = strtr(base64_encode($url), '+/', '-_');
 	$cacheUrl = __DIR__ . '/cache/' . $base64Url;
 	$failMarker = __DIR__ . '/cache-failed/' . $base64Url;
 
