@@ -30,6 +30,7 @@ const MAX_SCREENSHOT_SIZE = 2 * 1024 * 1024; // 2 MiB
 const HTTP_TIMEOUT_S  = 30;
 const RETRY_BACKOFF_S = 6 * 3600; // don't retry a failed fetch more often than this
 const PROXY_URL_PREFIX = 'https://usercontent.apps.nextcloud.com/';
+const CACHE_FILE_MODE = 0644; // index.php may run as a different user than this script
 
 /**
  * The app store serves screenshot URLs already pointing at this proxy, so the
@@ -95,6 +96,23 @@ function generateWarningImage(string $cacheUrl, string $url, string $message): v
 function markFailedFetch(string $cacheUrl, string $failMarker, string $url, string $message): void {
 	touch($failMarker);
 	generateWarningImage($cacheUrl, $url, $message);
+	ensureReadable($cacheUrl);
+}
+
+/**
+ * Makes a cache entry readable by the web server serving index.php, which
+ * may run as a different user than this script.
+ *
+ * @param string $cacheUrl path to screenshot in cache
+ */
+function ensureReadable(string $cacheUrl): void {
+	if (!file_exists($cacheUrl) || (fileperms($cacheUrl) & 0777) === CACHE_FILE_MODE) {
+		return;
+	}
+
+	if (!@chmod($cacheUrl, CACHE_FILE_MODE)) {
+		echo(sprintf("Unable to make cache entry %s readable\n", basename($cacheUrl)));
+	}
 }
 
 /**
@@ -213,6 +231,8 @@ function handleScreenshot(UrlValidator $validator, array $screenshot): void {
 	$failMarker = __DIR__ . '/cache-failed/' . $base64Url;
 
 	if (file_exists($cacheUrl)) {
+		ensureReadable($cacheUrl);
+
 		if (!file_exists($failMarker)) {
 			// Already fetched successfully, nothing to do
 			return;
@@ -265,6 +285,8 @@ function handleScreenshot(UrlValidator $validator, array $screenshot): void {
 		return;
 	}
 
+	// Set before the rename, so the entry is never served unreadable
+	chmod($tempUrl, CACHE_FILE_MODE);
 	rename($tempUrl, $cacheUrl);
 
 	if (file_exists($failMarker)) {
